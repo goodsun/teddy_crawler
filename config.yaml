@@ -1,0 +1,109 @@
+# Teddy Crawler 設定ファイル
+# このファイルを編集してクロール対象とルールを定義
+
+# グローバル設定
+settings:
+  # レート制限（リクエスト間の待機時間、ミリ秒）
+  delay: 2000
+  
+  # タイムアウト設定（ミリ秒）
+  timeout: 30000
+  
+  # User-Agent設定
+  user_agent: "TeddyCrawler/1.0 (Educational Purpose)"
+  
+  # スクリーンショット設定
+  screenshot: false
+  
+  # プロファイル設定（teddy_browserのプロファイルを使用する場合）
+  profile: null  # 例: "default", "login_session" など
+  
+  # 出力形式
+  output_format: "json"  # "json" or "jsonl"
+
+# クロールジョブ定義
+jobs:
+  # Example 1: note.com のトレンド記事
+  - name: "note_trending"
+    url: "https://note.com/search?q=AI&sort=trend"
+    
+    # 抽出する要素のセレクタ
+    selectors:
+      title: "h3 a"
+      link: "a[href*='/n/']"
+      author: ".note-common-authors a"
+    
+    # ページロード後の待機時間（ミリ秒）
+    wait: 3000
+    
+    # 無限スクロール対応
+    scroll: true
+    
+    # スクロール回数（nullの場合は最下部まで）
+    scroll_count: 3
+    
+    # 抽出タイプ指定
+    extract: ["text", "links"]
+
+  # Example 2: 単一ページの全データ取得
+  - name: "single_page"
+    url: "https://example.com"
+    
+    # 全データタイプを抽出
+    extract: ["text", "links", "images"]
+    
+    # 待機時間
+    wait: 2000
+    
+    # スクリーンショット取得
+    screenshot: true
+
+  # Example 3: GitHub リポジトリ情報
+  - name: "github_repo"
+    url: "https://github.com/microsoft/playwright"
+    
+    selectors:
+      repo_name: "h1[data-view-component=true] strong a"
+      description: "p[data-view-component=true]"
+      stars: "#repo-stars-counter-star"
+      language: "[data-view-component=true][data-testid*=language]"
+    
+    extract: ["text", "links"]
+    wait: 2000
+
+  # Example 4: ニュースサイトの記事一覧
+  - name: "news_articles"
+    url: "https://www3.nhk.or.jp/news/"
+    
+    selectors:
+      headline: ".content--summary-more h1"
+      summary: ".content--summary-more .content--summary"
+      link: ".content--summary-more a"
+    
+    extract: ["text", "links"]
+    wait: 3000
+    scroll: false
+
+# カスタム抽出ルール
+custom_rules:
+  # 特定パターンのリンクのみ抽出
+  link_patterns:
+    - "/n/"          # note記事
+    - "/github\\.com/" # GitHub関連
+    
+  # 除外パターン
+  exclude_patterns:
+    - "javascript:"
+    - "mailto:"
+    - "#"
+
+# デバッグ設定
+debug:
+  # 詳細ログ出力
+  verbose: false
+  
+  # ブラウザを表示（ヘッドフルモード）
+  headful: false
+  
+  # 開発者ツールを開く
+  devtools: false

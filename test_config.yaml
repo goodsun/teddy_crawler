@@ -1,0 +1,17 @@
+settings:
+  delay: 1000
+  timeout: 15000
+  user_agent: "TeddyCrawler/1.0 (Test)"
+  screenshot: false
+  output_format: "json"
+
+jobs:
+  - name: "example_test"
+    url: "https://example.com"
+    extract: ["text", "links"]
+    wait: 1000
+    
+  - name: "httpbin_test"
+    url: "https://httpbin.org/html"
+    extract: ["text", "links"]
+    wait: 1000
