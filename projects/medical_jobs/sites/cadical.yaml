@@ -1,0 +1,34 @@
+name: cadical
+base_url: https://iryoushoku.cadical.jp
+list_url: /search/?p={page}
+detail_url: /search/details/?job_id={id}
+id_pattern: "job_id=(\\d+)"
+id_field: original_id
+page_param: p
+start_page: 1
+end_page: 90
+delay: 1.0
+
+meta_patterns:
+  title_original: 'sc-recruit__item__title[^>]*>([^<]+)'
+  original_id: '求人ID\s*:\s*(\d+)'
+  update_date: '更新日\s*:\s*([\d/]+)'
+
+mapping:
+  original_id: original_id
+  title_original: title_original
+  facility_name: 勤務先
+  prefecture: 勤務地
+  station: 最寄駅
+  access: アクセス
+  price: 給与
+  occupation: 職種
+  contract: 雇用形態
+  facility_type: 業種
+  detail: 仕事内容
+  required_skill: 応募条件
+  working_hours: 勤務時間
+  holiday: 休日休暇
+  welfare_program: 福利厚生
+  caractoristic: 特徴
+  name: 企業情報
