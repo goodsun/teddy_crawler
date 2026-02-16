@@ -1,6 +1,8 @@
 """HTTP Engine — SSRサイト用クローラーエンジン"""
 
 import json
+import os
+import tempfile
 import time
 import yaml
 from pathlib import Path
@@ -138,9 +140,22 @@ def run(config_path: str, max_pages: int = None, max_items: int = None,
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = str(output_dir / f"{site_name}_{timestamp}.jsonl")
 
-    with open(output_path, "w") as f:
-        for r in results:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    # 一時ファイルに書き込み後、アトミックにリネーム
+    output_dir_for_temp = os.path.dirname(os.path.abspath(output_path))
+    fd, tmp_path = tempfile.mkstemp(
+        dir=output_dir_for_temp, suffix=".tmp", prefix=".teddy_",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for r in results:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        os.replace(tmp_path, output_path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
     print(f"\n🎉 Done! {len(results)} records saved to {output_path}")
     return results

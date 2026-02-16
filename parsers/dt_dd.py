@@ -1,15 +1,52 @@
 """dt/ddパターンの汎用パーサー"""
 
 import re
+import socket
+import ipaddress
 import urllib.request
+import urllib.parse
+
+_MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def _validate_url(url: str) -> None:
+    """URLの安全性を検証する"""
+    parsed = urllib.parse.urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme!r} (only http/https allowed)")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError(f"No hostname in URL: {url!r}")
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: {hostname!r}")
+
+    for _family, _, _, _, sockaddr in addr_info:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
+            raise ValueError(
+                f"Access to private/reserved IP is forbidden: {hostname} -> {ip}"
+            )
 
 
 def fetch_html(url: str, timeout: int = 15) -> str:
     """URLからHTMLを取得"""
+    _validate_url(url)
+
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     })
-    return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", errors="replace")
+    resp = urllib.request.urlopen(req, timeout=timeout)
+    data = resp.read(_MAX_RESPONSE_BYTES + 1)
+    if len(data) > _MAX_RESPONSE_BYTES:
+        raise ValueError(
+            f"Response exceeds size limit ({_MAX_RESPONSE_BYTES // (1024 * 1024)} MB)"
+        )
+    return data.decode("utf-8", errors="replace")
 
 
 def extract_ids(html: str, pattern: str) -> list:

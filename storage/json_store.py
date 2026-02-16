@@ -24,11 +24,8 @@ class JSONStore:
                 url_part = self._sanitize_url_for_filename(data.get('url', 'unknown'))
                 filename = f"crawl_{timestamp}_{url_part}.json"
             
-            if not filename.endswith('.json'):
-                filename += '.json'
-            
-            filepath = self.output_dir / filename
-            
+            filepath = self._safe_filepath(filename, expected_suffix=".json")
+
             # Add metadata
             output_data = {
                 'metadata': {
@@ -38,28 +35,25 @@ class JSONStore:
                 },
                 'data': data
             }
-            
+
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
-            
+
             print(f"✅ Saved to: {filepath}")
             return str(filepath)
-            
+
         except Exception as e:
             print(f"❌ Error saving to JSON: {e}")
             raise
-    
+
     def save_batch_results(self, results: List[Dict[str, Any]], filename: Optional[str] = None) -> str:
         """Save batch crawl results to JSON file"""
         try:
             if not filename:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"batch_crawl_{timestamp}.json"
-            
-            if not filename.endswith('.json'):
-                filename += '.json'
-            
-            filepath = self.output_dir / filename
+
+            filepath = self._safe_filepath(filename, expected_suffix=".json")
             
             # Add metadata
             output_data = {
@@ -84,10 +78,7 @@ class JSONStore:
     def append_to_jsonl(self, data: Dict[str, Any], filename: str) -> str:
         """Append single result to JSONL file (one JSON object per line)"""
         try:
-            if not filename.endswith('.jsonl'):
-                filename += '.jsonl'
-            
-            filepath = self.output_dir / filename
+            filepath = self._safe_filepath(filename, expected_suffix=".jsonl")
             
             # Add metadata to each record
             record = {
@@ -108,7 +99,7 @@ class JSONStore:
     def load_results(self, filename: str) -> Dict[str, Any]:
         """Load results from JSON file"""
         try:
-            filepath = self.output_dir / filename
+            filepath = self._safe_filepath(filename)
             
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -122,7 +113,7 @@ class JSONStore:
     def load_jsonl_results(self, filename: str) -> List[Dict[str, Any]]:
         """Load results from JSONL file"""
         try:
-            filepath = self.output_dir / filename
+            filepath = self._safe_filepath(filename)
             results = []
             
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -218,6 +209,24 @@ class JSONStore:
             print(f"❌ Error creating summary report: {e}")
             raise
     
+    def _safe_filepath(self, filename: str, expected_suffix: str = "") -> Path:
+        """filenameからディレクトリ成分を除去し、output_dir配下であることを検証する"""
+        safe_name = os.path.basename(filename)
+        if not safe_name:
+            raise ValueError(f"Invalid filename: {filename!r}")
+
+        if expected_suffix and not safe_name.endswith(expected_suffix):
+            safe_name += expected_suffix
+
+        filepath = (self.output_dir / safe_name).resolve()
+        output_dir_resolved = self.output_dir.resolve()
+        if not str(filepath).startswith(str(output_dir_resolved) + os.sep) and filepath != output_dir_resolved:
+            raise ValueError(
+                f"Path traversal detected: {filename!r} resolves outside output directory"
+            )
+
+        return filepath
+
     def _sanitize_url_for_filename(self, url: str) -> str:
         """Sanitize URL to create safe filename"""
         if not url:

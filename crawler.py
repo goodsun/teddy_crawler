@@ -14,7 +14,6 @@ import argparse
 import sys
 import time
 import yaml
-import random
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse
@@ -101,33 +100,34 @@ class TeddyCrawler:
     async def fetch_single_url(self, url: str, custom_config: Optional[Dict] = None) -> Dict[str, Any]:
         """単一URLを取得"""
         print(f"🎯 Fetching: {url}")
-        
+
         config = {**self.config, **(custom_config or {})}
-        
+        page = None
+
         try:
             page = await self.context.new_page()
-            
+
             # User-Agentを設定
             user_agent = config.get('settings', {}).get('user_agent')
             if user_agent:
                 await page.set_extra_http_headers({'User-Agent': user_agent})
-            
+
             # ページに移動
             timeout = config.get('settings', {}).get('timeout', 30000)
             await page.goto(url, timeout=timeout, wait_until='domcontentloaded')
-            
+
             # 待機処理
             wait_time = config.get('settings', {}).get('delay', 2000)
             if config.get('wait'):
                 wait_time = config['wait']
-            
+
             if wait_time > 0:
                 await page.wait_for_timeout(wait_time)
-            
+
             # スクロール処理
             if config.get('scroll', False):
                 await self._handle_scrolling(page, config)
-            
+
             # データ抽出
             result = {
                 'url': url,
@@ -135,43 +135,41 @@ class TeddyCrawler:
                 'success': True,
                 'data': {}
             }
-            
+
             # 抽出タイプに応じてデータを取得
             extract_types = config.get('extract', ['text', 'links', 'images'])
             selectors = config.get('selectors', {})
-            
+
             if 'text' in extract_types:
                 if selectors:
                     text_data = await self.text_extractor.extract_with_selectors(page, selectors)
                 else:
                     text_data = await self.text_extractor.extract_all_text(page)
                 result['data']['text'] = text_data
-            
+
             if 'links' in extract_types:
                 if selectors:
                     links_data = await self.link_extractor.extract_with_selectors(page, selectors)
                 else:
                     links_data = await self.link_extractor.extract_all_links(page)
                 result['data']['links'] = links_data
-            
+
             if 'images' in extract_types:
                 if selectors:
                     images_data = await self.image_extractor.extract_with_selectors(page, selectors)
                 else:
                     images_data = await self.image_extractor.extract_all_images(page)
                 result['data']['images'] = images_data
-            
+
             # スクリーンショット
             if config.get('screenshot', False):
                 screenshot = await page.screenshot(full_page=True)
                 screenshot_path = self.storage.save_screenshot(screenshot, url)
                 result['screenshot'] = screenshot_path
-            
-            await page.close()
-            
+
             print(f"✅ Successfully crawled: {url}")
             return result
-            
+
         except Exception as e:
             print(f"❌ Error crawling {url}: {e}")
             return {
@@ -180,6 +178,12 @@ class TeddyCrawler:
                 'success': False,
                 'error': str(e)
             }
+        finally:
+            if page is not None:
+                try:
+                    await page.close()
+                except Exception:
+                    pass
     
     async def fetch_batch(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """バッチでURLを取得"""
